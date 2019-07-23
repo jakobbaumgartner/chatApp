@@ -1,0 +1,70 @@
+{
+  "questions": {
+    "example1": {
+      "title": "Title",
+      "text": "whatever",
+      "rating": 2,
+      "timestamp": 1230902471,
+      "creator": {
+        "name": "Admin",
+        "uid": 0
+      }
+    },
+    "example2": {
+      "title": "Title2",
+      "text": "whatever2",
+      "rating": 0,
+      "timestamp": 1230902471,
+      "creator": {
+        "name": "Daniel",
+        "uid": 1
+      }
+    },
+    "example3": {
+      "title": "Title2",
+      "text": "whatever2",
+      "timestamp": 1230902471,
+      "creator": {
+        "name": "JB",
+        "uid": 2
+      }
+    }
+  },
+  "answers": {
+    "example1": [
+      "0": {
+      "timestamp": 123,
+      "rating": 2,
+      "creator": {
+        "name": "Daniel",
+        "uid": 1
+      },
+      "text": "Test response",
+      "children": {
+        "0": {
+          "creator": {
+            "name": "Admin",
+            "uid": 0,
+          },
+          "text": "some response",
+          "timestamp": 136217581,
+          "rating": 0
+        }
+      }
+    }
+  ]
+  },
+  "keywords": {
+    "ala": ["example1"],
+    "ma": ["example2"],
+    "kota": []
+  },
+  "votes": {
+    "questions": {
+      "example1": [0, 1]
+    },
+    "comments": {
+      "example1:0": [0,1]
+    }
+  },
+}
