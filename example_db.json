@@ -32,7 +32,7 @@
   },
   "answers": {
     "example1": [
-      "0": {
+      {
       "timestamp": 123,
       "rating": 2,
       "creator": {
@@ -44,7 +44,7 @@
         "0": {
           "creator": {
             "name": "Admin",
-            "uid": 0,
+            "uid": 0
           },
           "text": "some response",
           "timestamp": 136217581,
@@ -54,17 +54,24 @@
     }
   ]
   },
+  "chatrooms": {
+    "0": {
+      "online_users": [],
+      "messages": [
+        {
+          "author": {
+            "name": "Daniel",
+            "uid": 1
+          },
+          "text": "Some text",
+          "timestamp": 12351
+        }
+      ]
+    }
+  },
   "keywords": {
     "ala": ["example1"],
     "ma": ["example2"],
     "kota": []
-  },
-  "votes": {
-    "questions": {
-      "example1": [0, 1]
-    },
-    "comments": {
-      "example1:0": [0,1]
-    }
-  },
+  }
 }
