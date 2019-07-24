@@ -4,20 +4,20 @@ export const Routes = {
   comments: '/comments',
   keywords: '/keywords',
   chatrooms: '/chatrooms',
-  publicChatroom: Routes.chatrooms+'/0',
+  publicChatroom: '/chatrooms/0',
   privateChatroom: (uida, uidb) => {
     if(uida < uidb) {
       a ^= b;
       b ^= a;
       a ^= b;
     }
-    return Routes.chatrooms+'/'+uida+':'+uidb;
+    return '/chatrooms/'+uida+':'+uidb;
   }
 };
 
 const db = firebase.database();
 
-const Queries = {
+export const Queries = {
   allQuestions: () => db.ref(Routes.questions).orderByChild('createdAt'),
   userQuestions: uid => db.ref(Routes.questions).orderByChild('creator/uid').equalTo(uid),
   keywordQuestions: keyword => db.ref(Routes.keywords).child(keyword),
@@ -30,12 +30,19 @@ function _processSnapshot(snapshot) {
   return res;
 }
 
+function _transformToArray(object) {
+  return Object.keys(object).map(key => {
+    object[key]['id'] = key;
+    return object[key];
+  });
+}
+
 export async function getAllQuestions() {
-  return (await Queries.allQuestions().once('value')).map(_processSnapshot);
+  return _transformToArray((await Queries.allQuestions().once('value')).val());
 }
 
 export async function getUserQuestions(user_uid) {
-  return (await Queries.userQuestions(user_uid).once('value')).map(_processSnapshot);
+  return _transformToArray(await Queries.userQuestions(user_uid).once('value').val());
 }
 
 async function getKeywordQuestionsIDs(keyword) {
@@ -46,7 +53,12 @@ export async function getKeywordsQuestions(...keywords) {
   let set = new Set();
   await Promise.all(keywords.map(async keyword => {
     let t = await getKeywordQuestionsIDs(keyword);
-    t.forEach( a => set.add(a))
+    if(t !== null) {
+      console.log(t);
+      t.forEach( a => set.add(a))
+    } else {
+      console.error('Keyword ' +keyword+ ' does not exist');
+    }
   }));
 
   return await Promise.all(Array.from(set, async qid => {
@@ -75,5 +87,11 @@ export async function getComments(qid) {
     return object;
   }
 
-  return comments.map(key => assignID('', key, comments[key]));
+  return Object.keys(comments).map(key => assignID('', key, comments[key]));
+}
+
+export async function addNewQuestion(obj) {
+  var ref = db.ref(Routes.questions).push(obj);
+  obj['id'] = ref.key;
+  return obj;
 }
