@@ -1,15 +1,19 @@
+/*
+  Contains routes to different collections in database, relative to '/'
+*/
+// TODO: make it consistant - either transform each value to function or extract functions
 export const Routes = {
   questions: '/questions',
   answers: '/answers',
-  comments: '/comments',
   keywords: '/keywords',
   chatrooms: '/chatrooms',
-  publicChatroom: '/chatrooms/0',
-  privateChatroom: (uida, uidb) => {
+  publicChatroom: '/chatrooms/0', // public chatroom has a constant id of 0
+  privateChatroom: (uida, uidb) => { // private chatrooms' id is determined from uids of participants
     if(uida < uidb) {
-      a ^= b;
-      b ^= a;
-      a ^= b;
+      // XOR swap
+      uida ^= uidb;
+      uidb ^= uida;
+      uida ^= uidb;
     }
     return '/chatrooms/'+uida+':'+uidb;
   }
@@ -17,50 +21,84 @@ export const Routes = {
 
 const db = firebase.database();
 
-export const Queries = {
+const Queries = {
+   // query to all of the questions
   allQuestions: () => db.ref(Routes.questions).orderByChild('createdAt'),
+
+  // query to all questions created by user
   userQuestions: uid => db.ref(Routes.questions).orderByChild('creator/uid').equalTo(uid),
-  keywordQuestions: keyword => db.ref(Routes.keywords).child(keyword),
-  questionComments: qid => db.ref(Routes.comments).child(qid),
+
+  // query to all questions associated with given keyword
+  keywordQuestionIDs: keyword => db.ref(Routes.keywords).child(keyword),
+
+  // query to answers associated to given question
+  questionAnswers: qid => db.ref(Routes.answers).child(qid),
 }
 
+/*
+  Extracts values from DatabaseSnapshot and inserts them with id,
+*/
 function _processSnapshot(snapshot) {
   let res = snapshot.val();
   res['id'] = snapshot.ref.key;
   return res;
 }
 
+/*
+  Transforms array-like objects into actuals arrays ignoring ids.
+  Usually used for objects that have been defined as arrays in example database
+*/
 function _transformToArray(object) {
+  return Object.keys(object).map(key => {
+    return object[key];
+  });
+}
+
+/*
+  Transforms array-like objects into actuals arrays and inserts them with their original id.
+  Usually used for objects that have been defined as arrays in example database
+*/
+function _transformToArrayAndInsertID(object) {
   return Object.keys(object).map(key => {
     object[key]['id'] = key;
     return object[key];
   });
 }
 
+// status: tested - working
 export async function getAllQuestions() {
-  return _transformToArray((await Queries.allQuestions().once('value')).val());
+  return _transformToArrayAndInsertID((await Queries.allQuestions().once('value')).val());
 }
 
+// status: tested - working
 export async function getUserQuestions(user_uid) {
-  return _transformToArray(await Queries.userQuestions(user_uid).once('value').val());
+  return _transformToArrayAndInsertID(await Queries.userQuestions(user_uid).once('value').val());
 }
 
+/*
+  Returns array of questions' ids associated with the given keyword
+*/
 async function getKeywordQuestionsIDs(keyword) {
-  return (await Queries.keywordQuestions(keyword).once('value')).val();
+  return _transformToArray((await Queries.keywordQuestionIDs(keyword).once('value')).val());
 }
 
+/*
+  Return an array of unique question objects associated with at least one of the given keywords
+*/
+// status: tested - working
 export async function getKeywordsQuestions(...keywords) {
+  // Determine unique ids
   let set = new Set();
   await Promise.all(keywords.map(async keyword => {
     let t = await getKeywordQuestionsIDs(keyword);
     if(t !== null) {
-      console.log(t);
-      t.forEach( a => set.add(a))
+      t.forEach(a => set.add(a));
     } else {
       console.error('Keyword ' +keyword+ ' does not exist');
     }
   }));
 
+  // Fetch actuall objects
   return await Promise.all(Array.from(set, async qid => {
     let snapshot = await db.ref(Routes.questions+'/'+qid).once('value');
     let value = snapshot.val();
@@ -69,29 +107,73 @@ export async function getKeywordsQuestions(...keywords) {
   }));
 }
 
+/*
+  Returns JSON containing the entire public chatroom
+*/
+// status: tested - working
 export async function getPublicChatroom() {
-  return _processSnapshot(await Queries.publicChatroom().once('value'));
+  return _processSnapshot(await db.ref(Routes.publicChatroom).once('value'));
 }
 
+/*
+  Returns JSON containing the entire private channel for participants. Uids' order doesn't matter
+*/
+// status: same as getPublicChatroom
 export async function getPrivateChatroom(uida, uidb) {
   return _processSnapshot(await Queries.privateChatroom(uida, uidb).once('value'));
 }
+// TODO: getPublicChatroom and getPrivateChatroom look simmilar. Extract getChatroom(id) function from them
 
-export async function getComments(qid) {
-  let comments = (await Queries.questionComments(qid).once('value')).map(_processSnapshot);
+/*
+  Return JSON with entire answer tree associated to questions
+*/
+// status: tested - dead
+// TODO: rewrite
+export async function getQuestionAnswers(qid) {
+  let answers = _transformToArrayAndInsertID(await Queries.questionAnswers(qid).once('value'));
+  console.log(answers);
   const assignID = (base, yourid, object) => {
     const id = base+'/'+yourid;
+    console.log(object);
     if(typeof(object.children) != typeof(undefined))
-      object['children'] = object['children'].map(key => assignID(id, key, object['children']['id']));
+      object['children'] = object['children'].map(key => assignID(id, key, object['children'][key]));
     object['id'] = id;
     return object;
   }
 
-  return Object.keys(comments).map(key => assignID('', key, comments[key]));
+  return answers.map(answer => assignID('', answer.id, answer));
 }
 
+/*
+  Inserts what into where, after inserting the timestamp.
+  Return what inserted with id.
+*/
+// status: tested - working
+async function addToDatabase(where, what) {
+  what['timestamp'] = firebase.database.ServerValue.TIMESTAMP;
+  var ref = where.push(what);
+  what['id'] = ref.key;
+  return what;
+}
+
+/*
+  Inserts new object into question collection.
+  Required fields: creator: {name, uid}, keywords: array
+  Automatically inserts id and current timestamp
+*/
+// status: tested - working
 export async function addNewQuestion(obj) {
-  var ref = db.ref(Routes.questions).push(obj);
-  obj['id'] = ref.key;
-  return obj;
+  obj = await addToDatabase(db.ref(Routes.questions), obj);
+  obj.keywords.forEach(keyword => db.ref(Queries.keywordQuestionIDs(keyword)).push(obj.id));
+
+  return obj
+}
+
+/*
+  Inserts new object into question collection.
+  Required fields: creator: {name, uid}
+*/
+// status: tested - working
+export function addNewAnswer(to, answer_obj) {
+  return addToDatabase(Queries.questionAnswers(to), answer_obj)
 }
