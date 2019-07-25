@@ -130,13 +130,12 @@ export async function getPrivateChatroom(uida, uidb) {
 // status: tested - dead
 // TODO: rewrite
 export async function getQuestionAnswers(qid) {
-  let answers = _transformToArrayAndInsertID(await Queries.questionAnswers(qid).once('value'));
-  console.log(answers);
+  let answers = _transformToArrayAndInsertID((await Queries.questionAnswers(qid).once('value')).val());
   const assignID = (base, yourid, object) => {
     const id = base+'/'+yourid;
-    console.log(object);
-    if(typeof(object.children) != typeof(undefined))
-      object['children'] = object['children'].map(key => assignID(id, key, object['children'][key]));
+    if(typeof object.children !== 'undefined'){
+      object['children'] = Object.keys(object['children']).map(key => assignID(id, key, object.children[key]));
+    }
     object['id'] = id;
     return object;
   }

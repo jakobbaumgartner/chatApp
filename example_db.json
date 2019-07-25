@@ -40,8 +40,8 @@
         "uid": 1
       },
       "text": "Test response",
-      "children": {
-        "0": {
+      "children": [
+        {
           "creator": {
             "name": "Admin",
             "uid": 0
@@ -50,7 +50,7 @@
           "timestamp": 136217581,
           "rating": 0
         }
-      }
+      ]
     }
   ]
   },
