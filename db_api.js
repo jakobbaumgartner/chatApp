@@ -133,7 +133,7 @@ export async function getQuestionAnswers(qid) {
   const assignID = (base, yourid, object) => {
     const id = base+'/'+yourid;
     if(typeof object.children !== 'undefined'){
-      object['children'] = Object.keys(object['children']).map(key => assignID(id, key, object.children[key]));
+      object['children'] = Object.keys(object['children']).map(key => assignID(id+'/children', key, object.children[key]));
     }
     object['id'] = id;
     return object;
@@ -149,6 +149,10 @@ export async function getQuestionAnswers(qid) {
 // status: tested - working
 async function addToDatabase(where, what) {
   what['timestamp'] = firebase.database.ServerValue.TIMESTAMP;
+
+  // we will be adding id anyway, so there is no need to store it
+  delete what.id;
+
   var ref = where.push(what);
   what['id'] = ref.key;
   return what;
@@ -174,4 +178,34 @@ export async function addNewQuestion(obj) {
 // status: tested - working
 export function addNewAnswer(to, answer_obj) {
   return addToDatabase(Queries.questionAnswers(to), answer_obj)
+}
+
+/*
+  Increments the rating of pointed item. If not present, sets it to 1.
+  Might upvote things that are not supposed to be upvoted.
+*/
+// status: tested - working
+async function upvote(what) {
+  const query = db.ref(what).child('rating');
+  const objectExists = (await db.ref(what).once('value')).exists()
+  if(!objectExists) {
+    console.error('Object does not exist');
+  } else {
+    query.set((await query.once('value')).val()+1);
+  }
+  // TODO: Check if current user votes for the first time. Multiple votes are not allowed
+}
+
+/*
+  Upvotes question with id of qid
+*/
+export function upvoteQuestion(qid) {
+  return upvote(Routes.questions + '/' + qid);
+}
+
+/*
+  Upvotes question with id of aid
+*/
+export function upvoteAnswer(aid) {
+  return upvote(Routes.answers + aid);
 }
