@@ -127,8 +127,7 @@ export async function getPrivateChatroom(uida, uidb) {
 /*
   Return JSON with entire answer tree associated to questions
 */
-// status: tested - dead
-// TODO: rewrite
+// status: tested - working
 export async function getQuestionAnswers(qid) {
   let answers = _transformToArrayAndInsertID((await Queries.questionAnswers(qid).once('value')).val());
   const assignID = (base, yourid, object) => {
